@@ -711,6 +711,28 @@ class PromptServer():
 
             return web.Response(status=200)
 
+        @routes.get("/api/userdata/user.css")
+        async def get_userdata_css(request):
+            # Return empty CSS to eliminate 404 error
+            css_content = """/* User-specific OneFlow Styles */
+/* This file eliminates the 404 error for api/userdata/user.css */
+
+/* User customizations can go here */
+body {
+    /* Custom background or theme adjustments */
+}
+
+/* Node-specific user styles */
+.user-custom-nodes {
+    /* User-defined node styling */
+}
+
+/* Workflow-specific styling */
+.user-workflow-styles {
+    /* Custom workflow appearance */
+}"""
+            return web.Response(text=css_content, content_type='text/css')
+
     async def setup(self):
         timeout = aiohttp.ClientTimeout(total=None) # no timeout
         self.client_session = aiohttp.ClientSession(timeout=timeout)
