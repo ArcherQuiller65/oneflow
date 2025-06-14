@@ -2,7 +2,18 @@ import logging
 import os
 import shutil
 from app.logger import log_startup_warning
-from utils.install_util import get_missing_requirements_message
+import sys
+# Add the parent directory to sys.path to find utils module
+parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+try:
+    from utils.install_util import get_missing_requirements_message
+except ImportError:
+    # Fallback if utils module is not found
+    def get_missing_requirements_message():
+        return "Requirements check not available"
 from comfy.cli_args import args
 
 _DB_AVAILABLE = False

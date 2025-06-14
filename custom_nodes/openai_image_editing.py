@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 import torch
 import base64
 import tempfile
+import oss2
+import uuid
+from datetime import datetime
 
 # Load environment variables
 load_dotenv("/workspace/.env")
@@ -22,6 +25,26 @@ class OpenAIImageEditing:
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL")
         )
+        
+        # Initialize OSS client for image upload
+        try:
+            access_key_id = os.getenv("ACCESS_KEY_ID")
+            access_key_secret = os.getenv("ACCESS_KEY_SECRET")
+            endpoint = os.getenv("ENDPOINT")
+            bucket_name = os.getenv("BUCKET_NAME")
+            
+            if all([access_key_id, access_key_secret, endpoint, bucket_name]):
+                auth = oss2.Auth(access_key_id, access_key_secret)
+                self.bucket = oss2.Bucket(auth, endpoint, bucket_name)
+                self.bucket_name = bucket_name
+                self.endpoint = endpoint
+                self.oss_enabled = True
+            else:
+                self.oss_enabled = False
+                print("OSS credentials not found, image upload disabled")
+        except Exception as e:
+            self.oss_enabled = False
+            print(f"Failed to initialize OSS client: {e}")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -30,7 +53,7 @@ class OpenAIImageEditing:
                 "image": ("IMAGE",),
                 "prompt": ("STRING", {
                     "multiline": True,
-                    "default": "change this girl to boy",
+                    "default": "Edit this image",
                 }),
                 "model": ([
                     "flux-kontext-max", 
@@ -61,17 +84,52 @@ class OpenAIImageEditing:
         image_np = np.array(pil_image).astype(np.float32) / 255.0
         return torch.from_numpy(image_np)[None,]  # Add batch dimension
 
-    def upload_image_to_temp_url(self, pil_image):
+    def upload_image_to_oss(self, pil_image):
         """
-        Convert PIL image to a temporary URL-like string for the prompt
-        In a real implementation, you might want to upload to a cloud service
-        For now, we'll create a base64 data URL
+        Upload PIL image to OSS and return the public URL
         """
-        buffer = BytesIO()
-        pil_image.save(buffer, format='PNG')
-        img_data = buffer.getvalue()
-        img_base64 = base64.b64encode(img_data).decode()
-        return f"data:image/png;base64,{img_base64}"
+        if not self.oss_enabled:
+            # Fallback to base64 data URL if OSS is not available
+            buffer = BytesIO()
+            pil_image.save(buffer, format='PNG')
+            img_data = buffer.getvalue()
+            img_base64 = base64.b64encode(img_data).decode()
+            return f"data:image/png;base64,{img_base64}"
+        
+        try:
+            # Generate unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            filename = f"editing_input_{timestamp}_{unique_id}.png"
+            object_key = f"images/editing/{filename}"
+            
+            # Convert PIL image to bytes
+            buffer = BytesIO()
+            pil_image.save(buffer, format='PNG', optimize=True)
+            image_data = buffer.getvalue()
+            
+            # Upload to OSS
+            result = self.bucket.put_object(object_key, image_data)
+            
+            if result.status == 200:
+                # Construct the public URL
+                endpoint_domain = self.endpoint.replace('https://', '').replace('http://', '')
+                upload_url = f"https://{self.bucket_name}.{endpoint_domain}/{object_key}"
+                return upload_url
+            else:
+                print(f"OSS upload failed with status: {result.status}")
+                # Fallback to base64
+                img_base64 = base64.b64encode(image_data).decode()
+                return f"data:image/png;base64,{img_base64}"
+                
+        except Exception as e:
+            print(f"Error uploading to OSS: {e}")
+            # Fallback to base64
+            buffer = BytesIO()
+            pil_image.save(buffer, format='PNG')
+            img_data = buffer.getvalue()
+            img_base64 = base64.b64encode(img_data).decode()
+            return f"data:image/png;base64,{img_base64}"
 
     def edit_image(self, image, prompt, model):
         try:
@@ -82,12 +140,11 @@ class OpenAIImageEditing:
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
             
-            # Create a temporary image URL (in practice, you'd upload to a service)
-            # For this example, we'll include the image reference in the prompt
-            image_url_placeholder = "https://example.com/image.png"  # Placeholder
+            # Upload image to OSS and get the URL
+            image_url = self.upload_image_to_oss(pil_image)
             
             # Modify prompt to include image reference
-            full_prompt = f"{prompt} {image_url_placeholder}"
+            full_prompt = f"{prompt} {image_url}"
             
             # Note: The actual implementation depends on how the API handles image editing
             # This is based on the example provided where image URL is included in prompt

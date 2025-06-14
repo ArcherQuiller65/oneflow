@@ -33,8 +33,11 @@ from app.frontend_management import FrontendManager
 from app.user_manager import UserManager
 from app.model_manager import ModelFileManager
 from app.custom_node_manager import CustomNodeManager
+from app.chat_service import ChatService
 from typing import Optional, Union
 from api_server.routes.internal.internal_routes import InternalRoutes
+
+
 
 class BinaryEventTypes:
     PREVIEW_IMAGE = 1
@@ -158,6 +161,7 @@ class PromptServer():
         self.user_manager = UserManager()
         self.model_file_manager = ModelFileManager()
         self.custom_node_manager = CustomNodeManager()
+        self.chat_service = ChatService()
         self.internal_routes = InternalRoutes(self)
         self.supports = ["custom_nodes_from_web"]
         self.prompt_queue = execution.PromptQueue(self)
@@ -174,6 +178,8 @@ class PromptServer():
             middlewares.append(create_cors_middleware(args.enable_cors_header))
         else:
             middlewares.append(create_origin_only_middleware())
+
+
 
         max_upload_size = round(args.max_upload_size * 1024 * 1024)
         self.app = web.Application(client_max_size=max_upload_size, middlewares=middlewares)
@@ -713,25 +719,94 @@ class PromptServer():
 
         @routes.get("/api/userdata/user.css")
         async def get_userdata_css(request):
-            # Return empty CSS to eliminate 404 error
-            css_content = """/* User-specific OneFlow Styles */
+            # Load chat widget CSS and inject it
+            chat_css_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web_extensions", "chat_widget.css")
+            chat_css = ""
+            if os.path.exists(chat_css_path):
+                with open(chat_css_path, 'r', encoding='utf-8') as f:
+                    chat_css = f.read()
+            
+            css_content = f"""/* User-specific OneFlow Styles */
 /* This file eliminates the 404 error for api/userdata/user.css */
 
 /* User customizations can go here */
-body {
+body {{
     /* Custom background or theme adjustments */
-}
+}}
 
 /* Node-specific user styles */
-.user-custom-nodes {
+.user-custom-nodes {{
     /* User-defined node styling */
-}
+}}
 
 /* Workflow-specific styling */
-.user-workflow-styles {
+.user-workflow-styles {{
     /* Custom workflow appearance */
-}"""
+}}
+
+/* OneFlow AI Chat Widget Styles */
+{chat_css}
+
+"""
             return web.Response(text=css_content, content_type='text/css')
+
+        @routes.get("/api/userdata/chat_widget.js")
+        async def get_chat_widget_js(request):
+            # Serve the chat widget JavaScript
+            chat_js_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web_extensions", "chat_widget.js")
+            if os.path.exists(chat_js_path):
+                with open(chat_js_path, 'r', encoding='utf-8') as f:
+                    js_content = f.read()
+                return web.Response(text=js_content, content_type='application/javascript')
+            else:
+                return web.Response(text="// Chat widget not found", content_type='application/javascript')
+
+        @routes.get('/index_with_chat')
+        async def serve_index_with_chat_widget(request):
+            """Serve index.html with chat widget injected"""
+            try:
+                index_path = os.path.join(self.web_root, 'index.html')
+                if os.path.exists(index_path):
+                    with open(index_path, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                    
+                    # Inject chat widget script before closing body tag
+                    chat_script = '''
+<script src="/api/userdata/chat_widget.js"></script>
+</body>'''
+                    
+                    if '</body>' in html_content:
+                        html_content = html_content.replace('</body>', chat_script)
+                        print("Chat widget script injected into index.html!")
+                    
+                    return web.Response(text=html_content, content_type='text/html')
+                else:
+                    # Fallback to static file serving
+                    return web.FileResponse(os.path.join(self.web_root, 'index.html'))
+            except Exception as e:
+                print(f"Error serving index with chat widget: {e}")
+                # Fallback to static file serving
+                return web.FileResponse(os.path.join(self.web_root, 'index.html'))
+
+        @routes.get('/landing')
+        async def serve_landing_page(request):
+            """Serve the landing page"""
+            landing_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web_chat", "landing.html")
+            if os.path.exists(landing_path):
+                return web.FileResponse(landing_path)
+            else:
+                return web.Response(text="Landing page not found", status=404)
+
+        @routes.get('/test_chat')
+        async def serve_test_chat_page(request):
+            """Serve the chat widget test page"""
+            test_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web_chat", "test_chat.html")
+            if os.path.exists(test_path):
+                return web.FileResponse(test_path)
+            else:
+                return web.Response(text="Test chat page not found", status=404)
+
+
 
     async def setup(self):
         timeout = aiohttp.ClientTimeout(total=None) # no timeout
@@ -741,6 +816,7 @@ body {
         self.user_manager.add_routes(self.routes)
         self.model_file_manager.add_routes(self.routes)
         self.custom_node_manager.add_routes(self.routes, self.app, nodes.LOADED_MODULE_DIRS.items())
+        self.chat_service.add_routes(self.routes)
         self.app.add_subapp('/internal', self.internal_routes.get_app())
 
         # Prefix every route with /api for easier matching for delegation.
@@ -773,6 +849,15 @@ body {
             self.app.add_routes([
                 web.static('/docs', embedded_docs_path)
             ])
+
+        # Serve chat interface
+        chat_web_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "web_chat")
+        if os.path.exists(chat_web_path):
+            self.app.add_routes([
+                web.static('/chat', chat_web_path)
+            ])
+
+
 
         self.app.add_routes([
             web.static('/', self.web_root),

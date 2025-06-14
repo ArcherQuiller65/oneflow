@@ -8,7 +8,24 @@ import json
 import logging
 from functools import lru_cache
 
-from utils.json_util import merge_json_recursive
+import sys
+import os
+# Add the parent directory to sys.path to find utils module
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+try:
+    from utils.json_util import merge_json_recursive
+except ImportError:
+    # Fallback if utils module is not found
+    def merge_json_recursive(base, overlay):
+        """Simple fallback for merge_json_recursive"""
+        if isinstance(base, dict) and isinstance(overlay, dict):
+            result = base.copy()
+            result.update(overlay)
+            return result
+        return overlay
 
 
 # Extra locale files to load into main.json

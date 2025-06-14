@@ -218,9 +218,15 @@ def mac_version():
     except:
         return None
 
-total_vram = get_total_memory(get_torch_device()) / (1024 * 1024)
-total_ram = psutil.virtual_memory().total / (1024 * 1024)
-logging.info("Total VRAM {:0.0f} MB, total RAM {:0.0f} MB".format(total_vram, total_ram))
+try:
+    total_vram = get_total_memory(get_torch_device()) / (1024 * 1024)
+    total_ram = psutil.virtual_memory().total / (1024 * 1024)
+    logging.info("Total VRAM {:0.0f} MB, total RAM {:0.0f} MB".format(total_vram, total_ram))
+except Exception as e:
+    # Handle CUDA not available error during import
+    total_vram = 0
+    total_ram = psutil.virtual_memory().total / (1024 * 1024)
+    logging.info("CUDA not available during import, using CPU mode. Total RAM {:0.0f} MB".format(total_ram))
 
 try:
     logging.info("pytorch version: {}".format(torch_version))

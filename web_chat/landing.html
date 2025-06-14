@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneFlow - AI Workflow Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .logo {
+            font-size: 3em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #6c757d;
+            margin-bottom: 40px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .feature {
+            padding: 20px;
+            border-radius: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+
+        .feature-icon {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .feature h3 {
+            color: #343a40;
+            margin-bottom: 10px;
+        }
+
+        .feature p {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .actions {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #007bff;
+            border: 2px solid #007bff;
+        }
+
+        .btn-secondary:hover {
+            background: #007bff;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .status {
+            margin-top: 30px;
+            padding: 15px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 10px;
+            color: #155724;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 20px;
+                padding: 40px 20px;
+            }
+            
+            .actions {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🌊 OneFlow</div>
+        <div class="subtitle">AI-Powered Workflow Generation Platform</div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">🤖</div>
+                <h3>Integrated AI Chat</h3>
+                <p>Chat widget embedded directly in ComfyUI interface. Describe workflows in natural language and watch them appear on the canvas.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🔧</div>
+                <h3>Custom Nodes</h3>
+                <p>Leverage powerful custom nodes including OpenAI integration, image processing, and text manipulation.</p>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>Instant Workflows</h3>
+                <p>Generate complete workflows with proper node connections and parameter settings in seconds.</p>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="/index_with_chat" class="btn btn-primary">
+                🎨 ComfyUI with AI Chat
+            </a>
+            <a href="/chat/index.html" class="btn btn-secondary">
+                💬 Standalone Chat
+            </a>
+            <a href="/" class="btn btn-secondary">
+                🔧 ComfyUI (Standard)
+            </a>
+        </div>
+        
+        <div class="status" id="status">
+            <strong>🟢 System Status:</strong> <span id="statusText">Checking...</span>
+        </div>
+    </div>
+
+    <script>
+        // Check system status
+        async function checkStatus() {
+            try {
+                const response = await fetch('/api/chat/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('statusText').textContent = 
+                        `Active • ${result.nodes_loaded} nodes loaded • ${result.chat_entries} chat entries`;
+                } else {
+                    document.getElementById('statusText').textContent = 'Service unavailable';
+                    document.getElementById('status').style.background = '#f8d7da';
+                    document.getElementById('status').style.color = '#721c24';
+                    document.getElementById('status').style.borderColor = '#f5c6cb';
+                }
+            } catch (error) {
+                document.getElementById('statusText').textContent = 'Connection error';
+                document.getElementById('status').style.background = '#f8d7da';
+                document.getElementById('status').style.color = '#721c24';
+                document.getElementById('status').style.borderColor = '#f5c6cb';
+            }
+        }
+        
+        // Check status on page load
+        checkStatus();
+        
+        // Refresh status every 30 seconds
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>
