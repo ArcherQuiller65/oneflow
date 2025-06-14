@@ -1,7 +1,9 @@
 <div align="center">
 
-# ComfyUI
-**The most powerful and modular visual AI engine and application.**
+# OneFlow
+**Enhanced ComfyUI with AI-Powered Workflow Creation**
+
+*Built on ComfyUI - The most powerful and modular visual AI engine and application.*
 
 
 [![Website][website-shield]][website-url]
@@ -34,20 +36,88 @@
 ![ComfyUI Screenshot](https://github.com/user-attachments/assets/7ccaf2c1-9b72-41ae-9a89-5688c94b7abe)
 </div>
 
-ComfyUI lets you design and execute advanced stable diffusion pipelines using a graph/nodes/flowchart based interface. Available on Windows, Linux, and macOS.
+OneFlow enhances ComfyUI with an intelligent AI Chat Assistant that lets you create complex workflows using natural language. Simply describe what you want to accomplish, and the AI will generate the appropriate nodes and connections for you.
 
-## Get Started
+## 🌟 Key Features
 
-#### [Desktop Application](https://www.comfy.org/download)
-- The easiest way to get started. 
-- Available on Windows & macOS.
+- **🤖 AI Chat Assistant**: Create workflows using natural language
+- **🔗 Smart Node Linking**: Automatic connection of compatible nodes  
+- **🎯 Context Awareness**: AI understands your existing workflow
+- **⚡ Real-time Generation**: Instant workflow creation and application
+- **🛠️ Full ComfyUI Compatibility**: Works with all standard and custom nodes
 
-#### [Windows Portable Package](#installing)
-- Get the latest commits and completely portable.
-- Available on Windows.
+## 📚 Documentation
 
-#### [Manual Install](#manual-install-windows-linux)
-Supports all operating systems and GPU types (NVIDIA, AMD, Intel, Apple Silicon, Ascend).
+**📖 [Complete Documentation](docs/README.md)** - Comprehensive guides and references
+
+### Quick Links
+- **👥 [AI Chat Assistant Guide](docs/user-guide/ai-chat-assistant.md)** - Get started with AI-powered workflow creation
+- **🛠️ [Developer Guide](docs/developer-guide/ai-chat-architecture.md)** - Technical architecture and development
+- **🌐 [API Reference](docs/api/chat-api.md)** - Programmatic access to AI features
+- **📖 [Examples](docs/examples/ai-chat-examples.md)** - Real-world usage examples
+
+## 🚀 Quick Start
+
+### 1. Installation
+```bash
+git clone https://github.com/ArcherQuiller65/oneflow.git
+cd oneflow
+pip install -r requirements.txt
+```
+
+### 2. Configuration
+Set up your OpenAI API key for AI chat functionality:
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+```
+
+### 3. Run OneFlow
+```bash
+python main.py --listen 0.0.0.0 --port 12000
+```
+
+### 4. Start Creating
+1. Open your browser to `http://localhost:12000`
+2. Click the 🤖 icon to open the AI Chat Assistant
+3. Type: `"Generate an image of a sunset and display it"`
+4. Watch as the AI creates your workflow!
+
+## 💬 AI Chat Examples
+
+```
+"Load an image and make it brighter"
+"Create a text-to-image workflow for landscapes"  
+"Connect to the LoadImage node and add noise reduction"
+"Generate a story about space exploration"
+```
+
+## 🔧 System Requirements
+
+- **Python**: 3.10+ (3.12+ recommended)
+- **Memory**: 8GB RAM minimum (16GB+ recommended)
+- **OpenAI API Key**: Required for AI chat functionality
+- **GPU**: Optional but recommended for faster processing
+
+## 🎯 Use Cases
+
+- **🎨 Creative Workflows**: Generate art, apply styles, create variations
+- **📸 Image Processing**: Enhancement, upscaling, batch processing
+- **📝 Content Creation**: Text generation, image descriptions, prompts
+- **🔄 Automation**: Streamline repetitive tasks with AI assistance
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](docs/developer-guide/CONTRIBUTING.md) for details.
+
+## 📄 License
+
+This project is licensed under the same terms as ComfyUI. See the LICENSE file for details.
+
+---
+
+## Original ComfyUI Information
+
+OneFlow is built on ComfyUI. Below is information about the original ComfyUI installation and features.
 
 ## [Examples](https://comfyanonymous.github.io/ComfyUI_examples/)
 See what ComfyUI can do with the [example workflows](https://comfyanonymous.github.io/ComfyUI_examples/).

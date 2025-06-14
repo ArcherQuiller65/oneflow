@@ -1,26 +1,69 @@
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+*.egg-info/
+
+# OneFlow specific
 /output/
 /input/
 !/input/example.png
 /models/
 /temp/
+/user/
+*.log
+server.log
+
+# Custom nodes (keep examples and our custom nodes)
 /custom_nodes/
 !custom_nodes/example_node.py.example
-extra_model_paths.yaml
+!custom_nodes/openai_*.py
+!custom_nodes/oss_image_upload.py
+!custom_nodes/websocket_image_save.py
+
+# Development
 /.vs
 .vscode/
 .idea/
 venv/
 .venv/
+.env
+.env.local
+
+# Web extensions (keep our chat widget)
 /web/extensions/*
 !/web/extensions/logging.js.example
 !/web/extensions/core/
+!/web_extensions/
+
+# Testing and debugging
 /tests-ui/data/object_info.json
-/user/
-*.log
+debug_*.py
+test_*.py
+*_test.py
+*.tmp
+
+# Build and distribution
 web_custom_versions/
-.DS_Store
 openapi.yaml
 filtered-openapi.yaml
 uv.lock
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Documentation build
+docs/_build/
+docs/.doctrees/
+
+# API keys and secrets
+.env
+*.key
+secrets.json
