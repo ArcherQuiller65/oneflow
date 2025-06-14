@@ -226,11 +226,42 @@ class PromptServer():
 
         @routes.get("/")
         async def get_root(request):
-            response = web.FileResponse(os.path.join(self.web_root, "index.html"))
-            response.headers['Cache-Control'] = 'no-cache'
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
-            return response
+            """Serve index.html with chat widget injected"""
+            try:
+                index_path = os.path.join(self.web_root, 'index.html')
+                if os.path.exists(index_path):
+                    with open(index_path, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                    
+                    # Inject chat widget script before closing body tag
+                    chat_script = '''
+<script src="/api/userdata/chat_widget.js"></script>
+</body>'''
+                    
+                    if '</body>' in html_content:
+                        html_content = html_content.replace('</body>', chat_script)
+                        print("Chat widget script injected into index.html!")
+                    
+                    response = web.Response(text=html_content, content_type='text/html')
+                    response.headers['Cache-Control'] = 'no-cache'
+                    response.headers["Pragma"] = "no-cache"
+                    response.headers["Expires"] = "0"
+                    return response
+                else:
+                    # Fallback to static file serving
+                    response = web.FileResponse(os.path.join(self.web_root, "index.html"))
+                    response.headers['Cache-Control'] = 'no-cache'
+                    response.headers["Pragma"] = "no-cache"
+                    response.headers["Expires"] = "0"
+                    return response
+            except Exception as e:
+                print(f"Error serving index with chat widget: {e}")
+                # Fallback to static file serving
+                response = web.FileResponse(os.path.join(self.web_root, "index.html"))
+                response.headers['Cache-Control'] = 'no-cache'
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+                return response
 
         @routes.get("/embeddings")
         def get_embeddings(request):

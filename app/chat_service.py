@@ -107,8 +107,9 @@ class ChatService:
             try:
                 data = await request.json()
                 workflow_data = data.get('workflow', {})
+                current_workflow = data.get('current_workflow', None)
                 
-                validation_result = self.workflow_generator.validate_workflow(workflow_data)
+                validation_result = self.workflow_generator.validate_workflow(workflow_data, current_workflow)
                 
                 return web.json_response({
                     'success': True,

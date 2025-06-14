@@ -279,11 +279,26 @@ class OneFlowChatWidget {
             const operations = workflow.workflow;
             const nodeMap = new Map(); // Track created nodes by their workflow IDs
             
+            // First pass: collect all add_node operations to assign proper IDs
+            const addNodeOps = operations.filter(op => op.operation === 'add_node');
+            let nextNodeId = this.getNextAvailableNodeId();
+            
+            // Create a mapping of node types to assigned IDs for this workflow
+            const nodeTypeToId = new Map();
+            addNodeOps.forEach((op, index) => {
+                const nodeType = op.params.node_id;
+                const assignedId = nextNodeId + index;
+                nodeTypeToId.set(nodeType, assignedId);
+                console.log(`Assigning ID ${assignedId} to node type ${nodeType}`);
+            });
+            
             // Execute operations in sequence
             operations.forEach((operation, index) => {
                 switch (operation.operation) {
                     case 'add_node':
-                        this.addNodeToCanvas(operation.params, nodeMap);
+                        const nodeType = operation.params.node_id;
+                        const assignedId = nodeTypeToId.get(nodeType);
+                        this.addNodeToCanvas(operation.params, nodeMap, assignedId);
                         break;
                     case 'link_node':
                         this.linkNodesOnCanvas(operation.params, nodeMap);
@@ -307,7 +322,7 @@ class OneFlowChatWidget {
         }
     }
 
-    addNodeToCanvas(params, nodeMap) {
+    addNodeToCanvas(params, nodeMap, assignedNodeId = null) {
         if (!app || !app.graph) return;
 
         try {
@@ -325,6 +340,11 @@ class OneFlowChatWidget {
             // Set position
             node.pos = [position.x, position.y];
             
+            // Assign specific node ID if provided
+            if (assignedNodeId !== null) {
+                node.id = assignedNodeId;
+            }
+            
             // Set node parameters if provided
             if (params.node_params) {
                 Object.entries(params.node_params).forEach(([key, value]) => {
@@ -340,9 +360,10 @@ class OneFlowChatWidget {
             // Add node to graph
             app.graph.add(node);
             
-            // Store node reference using the node type as key
-            // This allows the AI to reference it by node type in link_node operations
+            // Store node reference using both the node type and the actual node ID
+            // This allows the AI to reference it by either identifier in link_node operations
             nodeMap.set(nodeType, node);
+            nodeMap.set(String(node.id), node);
             
             console.log('Added node to canvas:', nodeType, 'with ID:', node.id);
             
@@ -355,11 +376,18 @@ class OneFlowChatWidget {
         if (!app || !app.graph) return;
 
         try {
+            console.log('Attempting to link nodes:', params);
+            console.log('Available nodes in nodeMap:', Array.from(nodeMap.keys()));
+            console.log('Existing canvas nodes:', app.graph.nodes.map(n => `${n.id}:${n.type}`));
+            
             // Find source node (check nodeMap first, then existing canvas nodes)
             let sourceNode = nodeMap.get(params.source_node_id);
             if (!sourceNode) {
                 // Look for existing node on canvas by ID
                 sourceNode = this.findExistingNodeById(params.source_node_id);
+                console.log('Found existing source node:', sourceNode ? `${sourceNode.id}:${sourceNode.type}` : 'none');
+            } else {
+                console.log('Found source node in nodeMap:', `${sourceNode.id}:${sourceNode.type}`);
             }
             
             // Find target node (check nodeMap first, then existing canvas nodes)
@@ -367,6 +395,9 @@ class OneFlowChatWidget {
             if (!targetNode) {
                 // Look for existing node on canvas by ID
                 targetNode = this.findExistingNodeById(params.target_node_id);
+                console.log('Found existing target node:', targetNode ? `${targetNode.id}:${targetNode.type}` : 'none');
+            } else {
+                console.log('Found target node in nodeMap:', `${targetNode.id}:${targetNode.type}`);
             }
             
             if (!sourceNode || !targetNode) {
@@ -374,7 +405,9 @@ class OneFlowChatWidget {
                     source_id: params.source_node_id,
                     target_id: params.target_node_id,
                     sourceFound: !!sourceNode,
-                    targetFound: !!targetNode
+                    targetFound: !!targetNode,
+                    nodeMapKeys: Array.from(nodeMap.keys()),
+                    canvasNodes: app.graph.nodes.map(n => `${n.id}:${n.type}`)
                 });
                 return;
             }
@@ -383,15 +416,26 @@ class OneFlowChatWidget {
             const outputSlot = sourceNode.findOutputSlot(params.source_output);
             const inputSlot = targetNode.findInputSlot(params.target_input);
             
+            console.log('Slot lookup:', {
+                source_output: params.source_output,
+                target_input: params.target_input,
+                outputSlot,
+                inputSlot,
+                sourceOutputs: sourceNode.outputs?.map(o => o.name) || [],
+                targetInputs: targetNode.inputs?.map(i => i.name) || []
+            });
+            
             if (outputSlot !== -1 && inputSlot !== -1) {
                 sourceNode.connect(outputSlot, targetNode, inputSlot);
-                console.log('Connected nodes:', params.source_node_id, '->', params.target_node_id);
+                console.log('✅ Successfully connected nodes:', params.source_node_id, '->', params.target_node_id);
             } else {
                 console.error('Could not find slots for connection:', {
                     source_output: params.source_output,
                     target_input: params.target_input,
                     outputSlot,
-                    inputSlot
+                    inputSlot,
+                    sourceOutputs: sourceNode.outputs?.map(o => o.name) || [],
+                    targetInputs: targetNode.inputs?.map(i => i.name) || []
                 });
             }
             
@@ -425,6 +469,21 @@ class OneFlowChatWidget {
             console.error('Error finding existing node:', error);
             return null;
         }
+    }
+
+    getNextAvailableNodeId() {
+        /**
+         * Get the next available node ID for new nodes
+         */
+        if (!app || !app.graph || !app.graph.nodes) return 1;
+        
+        let maxId = 0;
+        for (const node of app.graph.nodes) {
+            if (node && node.id && !isNaN(node.id)) {
+                maxId = Math.max(maxId, parseInt(node.id));
+            }
+        }
+        return maxId + 1;
     }
 
     setNodeParam(params, nodeMap) {

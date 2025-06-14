@@ -215,7 +215,11 @@ If current workflow has a LoadImage node with ID "1", and user asks to edit the 
             
             if current_workflow:
                 user_message += f"\n\nCurrent workflow context:\n{json.dumps(current_workflow, indent=2)}"
-                user_message += "\n\nIf this request can modify the existing workflow (e.g., changing parameters in existing nodes), please do so instead of creating a completely new workflow."
+                user_message += "\n\nIMPORTANT: The above workflow already exists on the canvas. When creating link_node operations:"
+                user_message += "\n- Use the EXACT node IDs from the current workflow (e.g., if there's a node with ID '1', reference it as '1')"
+                user_message += "\n- Connect new nodes TO existing nodes whenever possible"
+                user_message += "\n- Reuse existing nodes instead of creating duplicates when appropriate"
+                user_message += "\n- If modifying existing workflow, prefer connecting to existing nodes over creating isolated new workflows"
             
             response = self.client.chat.completions.create(
                 model="gpt-4.1",
@@ -282,7 +286,7 @@ If current workflow has a LoadImage node with ID "1", and user asks to edit the 
                 nodes_used.add(atom.params.get("node_id"))
         return list(nodes_used)
     
-    def validate_workflow(self, workflow_data: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_workflow(self, workflow_data: Dict[str, Any], current_workflow: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Validate a generated workflow"""
         errors = []
         warnings = []
@@ -292,6 +296,11 @@ If current workflow has a LoadImage node with ID "1", and user asks to edit the 
             return {"valid": False, "errors": errors, "warnings": warnings}
         
         nodes_added = set()
+        existing_nodes = set()
+        
+        # If we have a current workflow, extract existing node IDs
+        if current_workflow and "nodes" in current_workflow:
+            existing_nodes = set(current_workflow["nodes"].keys())
         
         for i, step in enumerate(workflow_data["workflow"]):
             step_errors = []
@@ -316,15 +325,18 @@ If current workflow has a LoadImage node with ID "1", and user asks to edit the 
                 source_node = params.get("source_node_id")
                 target_node = params.get("target_node_id")
                 
-                if source_node not in nodes_added:
-                    step_errors.append(f"Step {i}: Source node '{source_node}' not added yet")
-                if target_node not in nodes_added:
-                    step_errors.append(f"Step {i}: Target node '{target_node}' not added yet")
+                # Check if source node exists (either added in this workflow or existing)
+                if source_node not in nodes_added and source_node not in existing_nodes:
+                    step_errors.append(f"Step {i}: Source node '{source_node}' not found")
+                
+                # Check if target node exists (either added in this workflow or existing)
+                if target_node not in nodes_added and target_node not in existing_nodes:
+                    step_errors.append(f"Step {i}: Target node '{target_node}' not found")
                     
             elif operation == "set_param":
                 node_id = params.get("node_id")
-                if node_id not in nodes_added:
-                    step_errors.append(f"Step {i}: Node '{node_id}' not added yet")
+                if node_id not in nodes_added and node_id not in existing_nodes:
+                    step_errors.append(f"Step {i}: Node '{node_id}' not found")
             
             errors.extend(step_errors)
         
