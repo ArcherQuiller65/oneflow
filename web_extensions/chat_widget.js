@@ -277,7 +277,7 @@ class OneFlowChatWidget {
     applyWorkflowToCanvas(workflow) {
         try {
             const operations = workflow.workflow;
-            const nodeMap = new Map(); // Track created nodes by their IDs
+            const nodeMap = new Map(); // Track created nodes by their workflow IDs
             
             // Execute operations in sequence
             operations.forEach((operation, index) => {
@@ -287,6 +287,9 @@ class OneFlowChatWidget {
                         break;
                     case 'link_node':
                         this.linkNodesOnCanvas(operation.params, nodeMap);
+                        break;
+                    case 'set_param':
+                        this.setNodeParam(operation.params, nodeMap);
                         break;
                     default:
                         console.warn('Unknown operation:', operation.operation);
@@ -337,10 +340,11 @@ class OneFlowChatWidget {
             // Add node to graph
             app.graph.add(node);
             
-            // Store node reference
+            // Store node reference using the node type as key
+            // This allows the AI to reference it by node type in link_node operations
             nodeMap.set(nodeType, node);
             
-            console.log('Added node to canvas:', nodeType);
+            console.log('Added node to canvas:', nodeType, 'with ID:', node.id);
             
         } catch (error) {
             console.error('Error adding node to canvas:', error);
@@ -351,11 +355,27 @@ class OneFlowChatWidget {
         if (!app || !app.graph) return;
 
         try {
-            const sourceNode = nodeMap.get(params.source_node_id);
-            const targetNode = nodeMap.get(params.target_node_id);
+            // Find source node (check nodeMap first, then existing canvas nodes)
+            let sourceNode = nodeMap.get(params.source_node_id);
+            if (!sourceNode) {
+                // Look for existing node on canvas by ID
+                sourceNode = this.findExistingNodeById(params.source_node_id);
+            }
+            
+            // Find target node (check nodeMap first, then existing canvas nodes)
+            let targetNode = nodeMap.get(params.target_node_id);
+            if (!targetNode) {
+                // Look for existing node on canvas by ID
+                targetNode = this.findExistingNodeById(params.target_node_id);
+            }
             
             if (!sourceNode || !targetNode) {
-                console.error('Source or target node not found for linking');
+                console.error('Source or target node not found for linking:', {
+                    source_id: params.source_node_id,
+                    target_id: params.target_node_id,
+                    sourceFound: !!sourceNode,
+                    targetFound: !!targetNode
+                });
                 return;
             }
 
@@ -367,11 +387,77 @@ class OneFlowChatWidget {
                 sourceNode.connect(outputSlot, targetNode, inputSlot);
                 console.log('Connected nodes:', params.source_node_id, '->', params.target_node_id);
             } else {
-                console.error('Could not find slots for connection');
+                console.error('Could not find slots for connection:', {
+                    source_output: params.source_output,
+                    target_input: params.target_input,
+                    outputSlot,
+                    inputSlot
+                });
             }
             
         } catch (error) {
             console.error('Error linking nodes on canvas:', error);
+        }
+    }
+
+    findExistingNodeById(nodeId) {
+        /**
+         * Find an existing node on the canvas by its ID
+         * This handles both string and numeric IDs
+         */
+        if (!app || !app.graph || !app.graph.nodes) return null;
+        
+        try {
+            // Convert nodeId to string for comparison
+            const searchId = String(nodeId);
+            
+            // Search through existing nodes
+            for (const node of app.graph.nodes) {
+                if (node && (String(node.id) === searchId || String(node.title) === searchId)) {
+                    console.log('Found existing node:', nodeId, node);
+                    return node;
+                }
+            }
+            
+            console.log('Existing node not found:', nodeId);
+            return null;
+        } catch (error) {
+            console.error('Error finding existing node:', error);
+            return null;
+        }
+    }
+
+    setNodeParam(params, nodeMap) {
+        /**
+         * Set a parameter on an existing node
+         */
+        if (!app || !app.graph) return;
+
+        try {
+            // Find the node (check nodeMap first, then existing canvas nodes)
+            let node = nodeMap.get(params.node_id);
+            if (!node) {
+                node = this.findExistingNodeById(params.node_id);
+            }
+
+            if (!node) {
+                console.error('Node not found for set_param:', params.node_id);
+                return;
+            }
+
+            // Set the parameter
+            if (node.widgets) {
+                const widget = node.widgets.find(w => w.name === params.param_name);
+                if (widget) {
+                    widget.value = params.param_value;
+                    console.log('Set parameter:', params.param_name, '=', params.param_value);
+                } else {
+                    console.error('Widget not found:', params.param_name);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error setting node parameter:', error);
         }
     }
 
